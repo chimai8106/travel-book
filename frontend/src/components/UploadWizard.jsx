@@ -102,7 +102,7 @@ export default function UploadWizard({ p, onNext, onBack }) {
       {/* Top bar */}
       <div style={{ padding: "1.25rem 2.5rem", borderBottom: `3px solid ${p.text}`, display: "flex", alignItems: "center", justifyContent: "space-between", background: p.card }}>
         <div style={{ fontFamily: "'Syne', sans-serif", fontWeight: 800, fontSize: "1.3rem", color: p.text }}>
-          Wander<span style={{ color: p.hero }}>Tale</span>
+          Postcards<span style={{ color: p.hero }}>I Never Send</span>
         </div>
         <div style={{ display: "flex", gap: "1.5rem", alignItems: "center" }}>
           {STEPS.map((s, i) => <StepDot key={s} index={i} current={step} label={s} color={COLORS[i]} />)}
