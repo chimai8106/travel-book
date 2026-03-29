@@ -80,9 +80,6 @@ export default function Processing({ p, tripData, format, onDone }) {
           <div style={{ background: p.card, border: `2px solid #E05A0055`, borderRadius: "14px", padding: "1rem 1.25rem", color: "#C0392B", fontWeight: 700, fontSize: "0.88rem", marginBottom: "1.5rem", wordBreak: "break-word" }}>
             {error}
           </div>
-          <p style={{ color: p.muted, fontSize: "0.85rem", fontWeight: 600, marginBottom: "1.5rem" }}>
-            Make sure your backend is running and <code style={{ background: p.surface, padding: "0.1rem 0.4rem", borderRadius: "6px" }}>VITE_BACKEND_URL</code> is set correctly.
-          </p>
           <button
             onClick={() => { setError(null); calledRef.current = false; setStepIdx(0); setDone(false); }}
             style={{ background: p.hero, color: "#fff", border: "none", padding: "0.85rem 2.5rem", borderRadius: "100px", fontWeight: 800, fontSize: "1rem", boxShadow: `4px 4px 0 ${p.text}33` }}

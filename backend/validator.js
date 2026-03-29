@@ -1,31 +1,20 @@
 export function validateTripInput(req, res, next) {
-  const { title, place } = req.body;
+  const { trip_title } = req.body;
 
-  if (!title || title.trim() === '') {
+  // Check trip title exists
+  if (!trip_title || trip_title.trim() === '') {
     return res.status(400).json({
       error: 'Validation failed',
       detail: 'Trip title is required'
     });
   }
 
-  if (!place || place.trim() === '') {
+  // Check at least one place was submitted
+  const files = req.files;
+  if (!files || Object.keys(files).length === 0) {
     return res.status(400).json({
       error: 'Validation failed',
-      detail: 'Destination is required'
-    });
-  }
-
-  if (!req.files || req.files.length === 0) {
-    return res.status(400).json({
-      error: 'Validation failed',
-      detail: 'At least one photo is required'
-    });
-  }
-
-  if (req.files.length > 5) {
-    return res.status(400).json({
-      error: 'Validation failed',
-      detail: 'Maximum 5 photos allowed'
+      detail: 'At least one place with photos is required'
     });
   }
 

@@ -1,6 +1,6 @@
 // This function handles all errors in one place
 export function errorHandler(err, req, res, next) {
-  console.error('Error:', err.message, );
+  console.error('Error:', err.message);
 
   // If it's a multer error (file upload problem)
   if (err.name === 'MulterError') {

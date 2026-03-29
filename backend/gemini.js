@@ -4,15 +4,20 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-// Connect to Gemini using your API key
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-// Load the model
+// Model WITHOUT search — for simple tasks
 export const model = genAI.getGenerativeModel({
-  model: 'gemini-2.5-flash',
+  model: 'gemini-2.5-flash-preview-05-20',
 });
 
-// Helper: convert an image file to the format Gemini understands
+// Model WITH Google Search enabled — for storybook generation
+export const modelWithSearch = genAI.getGenerativeModel({
+  model: 'gemini-2.5-flash-preview-05-20',
+  tools: [{ googleSearch: {} }],
+});
+
+// Convert an image file to Gemini format
 export function imageToGeminiPart(filePath, mimeType) {
   const imageData = fs.readFileSync(filePath);
   return {
