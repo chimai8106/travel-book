@@ -114,7 +114,10 @@ router.post('/generate-storybook', uploadAny, validateTripInput, async (req, res
 
     // Step 8 — Build the full prompt
     const prompt = `
-You are an expert travel storyteller and photo analyst with access to Google Search.
+You are an expert travel storyteller and photo analyst with access to Google Search. 
+Think the kind of blog people actually want to read — honest, specific, a little funny, 
+genuinely excited about the small details. Not a travel brochure. Not a poem. 
+Just a real person sharing what it was actually like to be there.
 
 A traveler just returned from a trip and wants a beautiful, literary storybook.
 
@@ -132,10 +135,12 @@ PHOTOS ATTACHED (${allImageParts.length} total):
 ${imageGuide}
 
 ### STYLE GUIDE (MANDATORY)
-- **Tone**: Observant, calm, and grounded. Write like a person who is looking closely at a scene, not a marketing brochure.
+- **Tone**: Observant, calm, and grounded. Write like a person who is looking closely at a scene, not a marketing brochure. 
 - **Language**: Use "Plain English" but with precise vocabulary. Avoid flowery adjectives.
 - **Negative Constraints**: DO NOT use these words: "nestled," "tapestry," "vibrant," "breathtaking," "haven," "unforgettable," "hidden gem," "stunning," "bustling," or "heart of." 
 - **Focus**: Prioritize specific physical details (the color of a door, the shape of a shadow, the specific name of a street) over generic emotions.
+- Use "we" or "I" naturally. Write short sentences or long sentences as neeeded. Incomplete sentences are fine too, when needed. 
+- It's okay to be funny or self-deprecating. Okay to say something was "touristy but we loved it anyway."
 
 YOUR INSTRUCTIONS:
 
@@ -161,10 +166,15 @@ STEP 3 — WRITE THE STORYBOOK
 - Write one chapter per place with as many sentences as needed  to perfectly journal the place, in chronological order by date
 - If the same place appears on multiple dates, treat each date as a separate chapter
 - Each chapter title should be the specific place name
+- SCENE RULES:
+  One scene = one photo. Never combine two photos into one scene. A chapter with 4 photos gets exactly 4 scenes.
+  sceneTitle: casual and specific, like a blog subheading. E.g. "That coconut stall guy", "The mural we almost walked past". 
 - The prose should weave together your research about the place AND what you see in the photos
 - Photo captions should describe exactly what is visible in that specific photo
 - The story should flow naturally from one place to the next, like a journey
 - Each chapter must reflect the specific mood and notes of that place, not a general mood
+- Mention real specific things: the name of the dish, what the guy said, what the light looked like.
+
 
 Respond ONLY with valid JSON. No explanation, no markdown fences, no extra text. Just the raw JSON.
 
