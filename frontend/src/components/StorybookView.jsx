@@ -1,18 +1,198 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import ExportModal from "./ExportModal";
 
-function ChapterCard({ chapter, photo, p }) {
-  const photoUrl = photo ? URL.createObjectURL(photo) : null;
+// ─── Measure the natural aspect ratio of an image URL ───────────────────────
+function useImageRatio(url) {
+  const [ratio, setRatio] = useState(null);
+  useEffect(() => {
+    if (!url) return;
+    const img = new Image();
+    img.onload = () => setRatio(img.naturalWidth / img.naturalHeight);
+    img.src = url;
+  }, [url]);
+  return ratio; // width / height, e.g. 1.78 for 16:9, 0.75 for portrait
+}
+
+// Clamp a ratio to a sensible display range so nothing goes crazy tall/wide
+function clampRatio(ratio) {
+  if (!ratio) return 4 / 3; // fallback while loading
+  return Math.min(Math.max(ratio, 1.2), 2.5); // min ~5:4 landscape, max ~5:2 wide
+}
+
+// ─── Arrow button style ──────────────────────────────────────────────────────
+function arrowStyle(side) {
+  return {
+    position: "absolute",
+    top: "50%",
+    [side]: "0.6rem",
+    transform: "translateY(-50%)",
+    background: "rgba(0,0,0,0.45)",
+    color: "#fff",
+    border: "none",
+    borderRadius: "50%",
+    width: "36px",
+    height: "36px",
+    fontSize: "1.3rem",
+    lineHeight: "36px",
+    textAlign: "center",
+    cursor: "pointer",
+    backdropFilter: "blur(4px)",
+    padding: 0,
+    zIndex: 2,
+    transition: "background 0.2s",
+  };
+}
+
+// ─── Single photo — uses aspect-ratio so it always fits naturally ────────────
+function SinglePhoto({ url, caption, location }) {
+  const ratio = useImageRatio(url);
+  const displayRatio = clampRatio(ratio);
+
   return (
-    <div style={{ background: p.card, border: `3px solid ${p.surface}`, borderRadius: "24px", overflow: "hidden", boxShadow: `6px 6px 0 ${p.hero}18`, marginBottom: "1.5rem" }}>
-      {photoUrl && (
-        <div style={{ width: "100%", height: "260px", overflow: "hidden", position: "relative" }}>
-          <img src={photoUrl} alt={chapter.caption} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-          <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, background: "linear-gradient(transparent, rgba(0,0,0,0.55))", padding: "1.5rem 1.25rem 0.75rem" }}>
-            <div style={{ color: "rgba(255,255,255,0.9)", fontSize: "0.75rem", fontWeight: 700, fontStyle: "italic" }}>📍 {chapter.location}</div>
-          </div>
+    <div style={{
+      width: "100%",
+      aspectRatio: `${displayRatio}`,
+      overflow: "hidden",
+      position: "relative",
+      background: "#111",
+      transition: "aspect-ratio 0.3s ease",
+    }}>
+      <img
+        src={url}
+        alt={caption}
+        style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center", display: "block" }}
+      />
+      <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, background: "linear-gradient(transparent, rgba(0,0,0,0.55))", padding: "1.5rem 1.25rem 0.75rem", pointerEvents: "none" }}>
+        <div style={{ color: "rgba(255,255,255,0.9)", fontSize: "0.75rem", fontWeight: 700, fontStyle: "italic" }}>📍 {location}</div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Slideshow — aspect-ratio follows the current slide ─────────────────────
+function PhotoSlideshow({ urls, caption, location }) {
+  const [current, setCurrent] = useState(0);
+  const [isPlaying, setIsPlaying] = useState(true);
+
+  const next = useCallback(() => setCurrent(i => (i + 1) % urls.length), [urls.length]);
+  const prev = () => setCurrent(i => (i - 1 + urls.length) % urls.length);
+
+  const ratio = useImageRatio(urls[current]);
+  const displayRatio = clampRatio(ratio);
+
+  useEffect(() => {
+    if (!isPlaying) return;
+    const t = setInterval(next, 3200);
+    return () => clearInterval(t);
+  }, [isPlaying, next]);
+
+  return (
+    <div
+      style={{
+        width: "100%",
+        aspectRatio: `${displayRatio}`,
+        position: "relative",
+        overflow: "hidden",
+        background: "#111",
+        transition: "aspect-ratio 0.35s ease",
+      }}
+      onMouseEnter={() => setIsPlaying(false)}
+      onMouseLeave={() => setIsPlaying(true)}
+    >
+      {urls.map((url, i) => (
+        <img
+          key={i}
+          src={url}
+          alt={caption}
+          style={{
+            position: "absolute", inset: 0,
+            width: "100%", height: "100%",
+            objectFit: "cover",
+            objectPosition: "center",
+            opacity: i === current ? 1 : 0,
+            transition: "opacity 0.55s ease",
+          }}
+        />
+      ))}
+
+      <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, background: "linear-gradient(transparent, rgba(0,0,0,0.6))", padding: "1.5rem 1.25rem 0.75rem", pointerEvents: "none" }}>
+        <div style={{ color: "rgba(255,255,255,0.9)", fontSize: "0.75rem", fontWeight: 700, fontStyle: "italic" }}>📍 {location}</div>
+      </div>
+
+      <button onClick={prev} style={arrowStyle("left")}>‹</button>
+      <button onClick={next} style={arrowStyle("right")}>›</button>
+
+      <div style={{ position: "absolute", bottom: "0.6rem", left: "50%", transform: "translateX(-50%)", display: "flex", gap: "5px" }}>
+        {urls.map((_, i) => (
+          <button key={i} onClick={() => { setCurrent(i); setIsPlaying(false); }}
+            style={{ width: i === current ? "18px" : "7px", height: "7px", borderRadius: "100px", background: i === current ? "#fff" : "rgba(255,255,255,0.45)", border: "none", padding: 0, transition: "all 0.3s", cursor: "pointer" }}
+          />
+        ))}
+      </div>
+
+      <div style={{ position: "absolute", top: "0.75rem", right: "0.75rem", background: "rgba(0,0,0,0.5)", color: "#fff", fontSize: "0.7rem", fontWeight: 800, padding: "0.2rem 0.55rem", borderRadius: "100px", backdropFilter: "blur(4px)" }}>
+        {current + 1} / {urls.length}
+      </div>
+    </div>
+  );
+}
+
+// ─── Collage — aspect-ratio from the hero image, fixed grid ─────────────────
+// Collages are always landscape-ish (ratio clamped ≥ 1) so the grid cells
+// are a sensible size regardless of the hero photo's orientation.
+function PhotoCollage({ urls, location }) {
+  const count = urls.length;
+  const rawRatio = useImageRatio(urls[0]);
+  // For collages force at least a 4:3 landscape feel even if hero is portrait
+  const displayRatio = rawRatio ? Math.min(Math.max(rawRatio, 1.1), 2.5) : 4 / 3;
+
+  const gridStyles = count === 2
+    ? { gridTemplateColumns: "1fr 1fr", gridTemplateRows: "1fr" }
+    : { gridTemplateColumns: "2fr 1fr", gridTemplateRows: "1fr 1fr" };
+
+  return (
+    <div style={{
+      width: "100%",
+      aspectRatio: `${displayRatio}`,
+      display: "grid",
+      gap: "3px",
+      position: "relative",
+      overflow: "hidden",
+      ...gridStyles,
+    }}>
+      {urls.slice(0, count === 2 ? 2 : 4).map((url, i) => (
+        <div key={i} style={{ overflow: "hidden", gridRow: i === 0 && count >= 3 ? "1 / -1" : undefined, minHeight: 0 }}>
+          <img src={url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+        </div>
+      ))}
+
+      {count > 4 && (
+        <div style={{ position: "absolute", bottom: "0.6rem", right: "0.75rem", background: "rgba(0,0,0,0.55)", color: "#fff", fontSize: "0.72rem", fontWeight: 800, padding: "0.2rem 0.6rem", borderRadius: "100px", backdropFilter: "blur(4px)" }}>
+          +{count - 4} more
         </div>
       )}
+      <div style={{ position: "absolute", bottom: "0.6rem", left: "0.75rem", background: "rgba(0,0,0,0.5)", color: "rgba(255,255,255,0.9)", fontSize: "0.75rem", fontWeight: 700, fontStyle: "italic", padding: "0.2rem 0.55rem", borderRadius: "100px", backdropFilter: "blur(4px)" }}>
+        📍 {location}
+      </div>
+    </div>
+  );
+}
+
+// ─── Chapter Card ────────────────────────────────────────────────────────────
+function ChapterCard({ chapter, photos, p }) {
+  const urls = (photos || []).filter(Boolean).map(f => URL.createObjectURL(f));
+  const count = urls.length;
+
+  // 0 → nothing | 1 → single | 2+ → slideshow
+  const useSlideshow = count >= 2;
+  const useSingle    = count === 1;
+
+  return (
+    <div style={{ background: p.card, border: `3px solid ${p.surface}`, borderRadius: "24px", overflow: "hidden", boxShadow: `6px 6px 0 ${p.hero}18`, marginBottom: "1.5rem" }}>
+
+      {useSingle    && <SinglePhoto url={urls[0]} caption={chapter.caption} location={chapter.location} />}
+      {useSlideshow && <PhotoSlideshow urls={urls} caption={chapter.caption} location={chapter.location} />}
+
       <div style={{ padding: "1.5rem" }}>
         <div style={{ display: "flex", alignItems: "baseline", gap: "0.75rem", marginBottom: "0.75rem" }}>
           <span style={{ background: p.hero, color: "#fff", fontSize: "0.68rem", fontWeight: 800, padding: "0.2rem 0.6rem", borderRadius: "100px", textTransform: "uppercase", letterSpacing: "0.08em", flexShrink: 0 }}>Ch. {chapter.num}</span>
@@ -25,6 +205,7 @@ function ChapterCard({ chapter, photo, p }) {
   );
 }
 
+// ─── Highlight / Timeline (unchanged) ───────────────────────────────────────
 function HighlightCard({ item, p }) {
   return (
     <div style={{ background: p.surface, borderRadius: "16px", padding: "1rem 1.1rem", border: `2px solid ${p.hero}22`, display: "flex", flexDirection: "column", gap: "0.3rem" }}>
@@ -51,13 +232,15 @@ function TimelineRow({ item, p, isLast }) {
   );
 }
 
+// ─── Export buttons ──────────────────────────────────────────────────────────
 const FORMAT_BUTTONS = [
   { id: "video",     emoji: "🎬", label: "Export Video" },
   { id: "scrapbook", emoji: "📖", label: "Export PDF" },
   { id: "website",   emoji: "🌐", label: "Share Website" },
-  { id: "slideshow", emoji: "🎞", label: "Export Slides" },
+  { id: "slideshow", emoji: "🎞",  label: "Export Slides" },
 ];
 
+// ─── Main View ───────────────────────────────────────────────────────────────
 export default function StorybookView({ storybook, photos, p, onRestart, onRegenerate, isRegenerating }) {
   const [copied, setCopied] = useState(false);
   const [exportFormat, setExportFormat] = useState(null);
@@ -102,9 +285,20 @@ export default function StorybookView({ storybook, photos, p, onRestart, onRegen
 
         <div style={{ marginBottom: "2rem" }}>
           <h2 style={{ fontFamily: "'Abril Fatface', serif", fontSize: "1.6rem", color: p.text, marginBottom: "1.25rem" }}>Your Story 📖</h2>
-          {(storybook.chapters || []).map((chapter, i) => (
-            <ChapterCard key={i} chapter={chapter} photo={photos && photos[chapter.photoIndex] ? photos[chapter.photoIndex] : null} p={p} />
-          ))}
+          {(storybook.chapters || []).map((chapter, i) => {
+            // Gather ALL photos for this chapter (not just the first)
+            const chapterPhotos = (chapter.photoIndices || [])
+              .map(idx => photos?.[idx])
+              .filter(Boolean);
+            return (
+              <ChapterCard
+                key={i}
+                chapter={chapter}
+                photos={chapterPhotos}
+                p={p}
+              />
+            );
+          })}
         </div>
 
         {storybook.highlights && storybook.highlights.length > 0 && (

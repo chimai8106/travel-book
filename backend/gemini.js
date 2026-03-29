@@ -8,12 +8,12 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 // Model WITHOUT search — for simple tasks
 export const model = genAI.getGenerativeModel({
-  model: 'gemini-2.5-flash-preview-05-20',
+  model: 'gemini-2.5-flash',
 });
 
 // Model WITH Google Search enabled — for storybook generation
 export const modelWithSearch = genAI.getGenerativeModel({
-  model: 'gemini-2.5-flash-preview-05-20',
+  model: 'gemini-2.5-flash',
   tools: [{ googleSearch: {} }],
 });
 

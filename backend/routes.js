@@ -7,18 +7,44 @@ import { validateTripInput } from './validator.js';
 
 const router = express.Router();
 
-// ── MULTER SETUP ──
-// Uses memory-based field names like photos_0, photos_1, photos_2
-// Each number matches the place index sent by the frontend
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, 'uploads/'),
   filename: (req, file, cb) => cb(null, Date.now() + '-' + file.originalname),
 });
 
-const upload = multer({ storage });
-
-// Accept any field name dynamically (photos_0, photos_1, etc.)
 const uploadAny = multer({ storage }).any();
+
+// Helper to parse places from either JSON array or bracket notation
+function parsePlaces(body) {
+  const placesMap = {};
+
+  // If places comes as a JSON array (multer collapses bracket keys)
+  if (body.places) {
+    let rawPlaces = body.places;
+    if (typeof rawPlaces === 'string') {
+      try { rawPlaces = JSON.parse(rawPlaces); } catch (e) {}
+    }
+    if (Array.isArray(rawPlaces)) {
+      rawPlaces.forEach((place, index) => {
+        placesMap[index] = { ...place };
+      });
+      return placesMap;
+    }
+  }
+
+  // Fallback: bracket notation places[0][name]
+  Object.keys(body).forEach(key => {
+    const match = key.match(/^places\[(\d+)\]\[(\w+)\]$/);
+    if (match) {
+      const index = match[1];
+      const field = match[2];
+      if (!placesMap[index]) placesMap[index] = {};
+      placesMap[index][field] = body[key];
+    }
+  });
+
+  return placesMap;
+}
 
 // ── STATUS ──
 router.get('/status', (req, res) => {
@@ -37,28 +63,18 @@ router.get('/status', (req, res) => {
 router.post('/generate-storybook', uploadAny, validateTripInput, async (req, res) => {
   console.log('RAW BODY KEYS:', Object.keys(req.body));
   console.log('RAW BODY:', JSON.stringify(req.body, null, 2));
+  console.log('FILES:', req.files?.map(f => f.fieldname + ': ' + f.originalname));
+
   const uploadedFiles = req.files || [];
 
   try {
-    // Step 1 — Read trip-level info
     const { trip_title } = req.body;
 
-    // Step 2 — Parse places from the request body
-    // Frontend sends: places[0][name], places[0][date], places[1][name], etc.
-    const placesMap = {};
-
-    Object.keys(req.body).forEach(key => {
-      const match = key.match(/^places\[(\d+)\]\[(\w+)\]$/);
-      if (match) {
-        const index = match[1];
-        const field = match[2];
-        if (!placesMap[index]) placesMap[index] = {};
-        placesMap[index][field] = req.body[key];
-      }
-    });
+    // Step 2 — Parse places
+    const placesMap = parsePlaces(req.body);
+    console.log('PARSED PLACES MAP:', JSON.stringify(placesMap, null, 2));
 
     // Step 3 — Attach photos to their place
-    // Frontend sends photos as: photos_0, photos_1, photos_2 etc.
     uploadedFiles.forEach(file => {
       const match = file.fieldname.match(/^photos_(\d+)$/);
       if (match) {
@@ -69,8 +85,8 @@ router.post('/generate-storybook', uploadAny, validateTripInput, async (req, res
       }
     });
 
-    // Convert map to array
     const placesArray = Object.values(placesMap).filter(p => p.name);
+    console.log('PLACES ARRAY LENGTH:', placesArray.length);
 
     if (placesArray.length === 0) {
       return res.status(400).json({
@@ -90,7 +106,7 @@ router.post('/generate-storybook', uploadAny, validateTripInput, async (req, res
 
     // Step 6 — Build image parts in order (place by place)
     const allImageParts = [];
-    const imageMapping = []; // tracks which photo belongs to which place
+    const imageMapping = [];
 
     sortedPlaces.forEach((place, placeIndex) => {
       if (place.photos) {
@@ -219,7 +235,6 @@ Rules:
     res.json({ success: true, storybook });
 
   } catch (error) {
-    // Clean up files even if something went wrong
     uploadedFiles.forEach(file => {
       if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
     });
@@ -235,17 +250,8 @@ router.post('/regenerate', uploadAny, validateTripInput, async (req, res) => {
   try {
     const { trip_title } = req.body;
 
-    // Parse places (same logic as generate)
-    const placesMap = {};
-    Object.keys(req.body).forEach(key => {
-      const match = key.match(/^places\[(\d+)\]\[(\w+)\]$/);
-      if (match) {
-        const index = match[1];
-        const field = match[2];
-        if (!placesMap[index]) placesMap[index] = {};
-        placesMap[index][field] = req.body[key];
-      }
-    });
+    // Parse places (same helper)
+    const placesMap = parsePlaces(req.body);
 
     uploadedFiles.forEach(file => {
       const match = file.fieldname.match(/^photos_(\d+)$/);
@@ -291,7 +297,6 @@ You are an expert travel storyteller. Rewrite this travel storybook with a compl
 
 TRIP INFORMATION:
 - Trip Title: ${trip_title}
-- Requested Style: ${new_style || 'cinematic'}
 
 PLACES VISITED (sorted by date):
 ${placesSummary}
@@ -303,7 +308,7 @@ the traveler's notes for that place into the prose. Do not mix moods between pla
 PHOTOS ATTACHED (${allImageParts.length} total):
 ${imageGuide}
 
-IMPORTANT: This is a REWRITE. Use a distinctly ${new_style || 'cinematic'} tone.
+IMPORTANT: This is a REWRITE. Use a distinctly cinematic tone.
 Do not repeat phrases or structure from any previous version.
 Use Google Search to get accurate information about each place.
 Analyze every photo carefully and name specific scenes and landmarks you see.
@@ -353,4 +358,5 @@ Return ONLY the JSON object, nothing else.
     res.status(500).json({ error: error.message });
   }
 });
+
 export default router;

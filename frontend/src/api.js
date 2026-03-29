@@ -14,6 +14,14 @@ function buildFormData(tripData) {
       formData.append(`photos_${i}`, file);
     });
   });
+  // ADD THIS 👇
+  console.log('=== FORMDATA DEBUG ===');
+  for (let [key, value] of formData.entries()) {
+    console.log(`${key}:`, value instanceof File ? `File(${value.name})` : value);
+  }
+  console.log('=== END FORMDATA DEBUG ===');
+
+  return formData;
 
   return formData;
 }

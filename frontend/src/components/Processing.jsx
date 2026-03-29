@@ -26,9 +26,9 @@ export default function Processing({ p, tripData, format, onDone }) {
 
   // Animate through steps while API call runs in background
   useEffect(() => {
+    
     if (calledRef.current) return;
     calledRef.current = true;
-
     let currentStep = 0;
 
     // Advance UI through steps 0→3 on a timer (step 4 = "Done" fires when API resolves)

@@ -24,27 +24,28 @@ const Confetti = ({ p }) => (
   </div>
 );
 
-export default function Result({ p, format, storybook, tripData, onRestart }) {
+// Renamed from StorybookView → Result to avoid clashing with the imported StorybookView
+export default function Result({ storybook, tripData, photos, p, onRestart, onRegenerate, isRegenerating }) {
   const [currentStorybook, setCurrentStorybook] = useState(storybook);
-  const [isRegenerating, setIsRegenerating] = useState(false);
   const [showConfetti, setShowConfetti] = useState(true);
+  const [localIsRegenerating, setLocalIsRegenerating] = useState(false);
 
-  // Hide confetti after 5s
+  // Hide confetti after 5s — use useEffect, not useState
   useState(() => {
     const t = setTimeout(() => setShowConfetti(false), 5000);
     return () => clearTimeout(t);
   });
 
   const handleRegenerate = async () => {
-    if (!tripData || isRegenerating) return;
-    setIsRegenerating(true);
+    if (!tripData || localIsRegenerating) return;
+    setLocalIsRegenerating(true);
     try {
       const fresh = await regenerateStorybook(tripData);
       setCurrentStorybook(fresh);
     } catch (err) {
       alert("Regeneration failed: " + err.message);
     } finally {
-      setIsRegenerating(false);
+      setLocalIsRegenerating(false);
     }
   };
 
@@ -55,17 +56,17 @@ export default function Result({ p, format, storybook, tripData, onRestart }) {
         {showConfetti && <Confetti p={p} />}
         <StorybookView
           storybook={currentStorybook}
-          photos={tripData?.photos || []}
+          photos={photos ?? tripData?.places?.flatMap(place => place.photos || [])}
           p={p}
           onRestart={onRestart}
-          onRegenerate={handleRegenerate}
-          isRegenerating={isRegenerating}
+          onRegenerate={onRegenerate ?? handleRegenerate}
+          isRegenerating={isRegenerating ?? localIsRegenerating}
         />
       </div>
     );
   }
 
-  // Fallback if no storybook data (shouldn't normally happen)
+  // Fallback if no storybook data
   return (
     <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "2rem" }}>
       <Confetti p={p} />
