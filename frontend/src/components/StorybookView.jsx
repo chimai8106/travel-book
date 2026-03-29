@@ -1,13 +1,12 @@
 import { useState, useRef, useEffect } from "react";
 import ExportModal from "./ExportModal";
+import NarrationPlayer from "./NarrationPlayer";
 
 /* ── Polaroid scene card ───────────────────────────────────────────────── */
 function SceneCard({ scene, photos, p, index }) {
   const photo = photos && photos[scene.photoIndex] != null ? photos[scene.photoIndex] : null;
   const photoUrl = photo ? URL.createObjectURL(photo) : null;
   const isEven = index % 2 === 0;
-
-  /* slight tilt alternates left / right */
   const tilt = isEven ? "rotate(-1.8deg)" : "rotate(1.5deg)";
 
   return (
@@ -18,14 +17,9 @@ function SceneCard({ scene, photos, p, index }) {
       gap: "2.5rem",
       marginBottom: "3rem",
     }}>
-
       {/* ── Polaroid ── */}
-      <div style={{
-        flexShrink: 0,
-        transform: tilt,
-        transition: "transform 0.3s ease",
-        cursor: "default",
-      }}
+      <div
+        style={{ flexShrink: 0, transform: tilt, transition: "transform 0.3s ease", cursor: "default" }}
         onMouseEnter={e => e.currentTarget.style.transform = "rotate(0deg) scale(1.03)"}
         onMouseLeave={e => e.currentTarget.style.transform = tilt}
       >
@@ -36,31 +30,19 @@ function SceneCard({ scene, photos, p, index }) {
           boxShadow: `3px 4px 0 ${p.text}18, 6px 8px 0 ${p.text}08`,
           width: "180px",
         }}>
-          {/* photo area */}
           <div style={{
-            width: "160px",
-            height: "150px",
-            overflow: "hidden",
-            background: p.surface,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
+            width: "160px", height: "150px", overflow: "hidden",
+            background: p.surface, display: "flex", alignItems: "center", justifyContent: "center",
           }}>
             {photoUrl
               ? <img src={photoUrl} alt={scene.caption} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
               : <span style={{ fontSize: "2rem", opacity: 0.3 }}>📷</span>
             }
           </div>
-          {/* handwritten-style caption */}
           <div style={{
-            marginTop: "10px",
-            fontFamily: "'Georgia', serif",
-            fontSize: "0.72rem",
-            color: "#888",
-            textAlign: "center",
-            fontStyle: "italic",
-            lineHeight: 1.4,
-            padding: "0 4px",
+            marginTop: "10px", fontFamily: "'Georgia', serif",
+            fontSize: "0.72rem", color: "#888", textAlign: "center",
+            fontStyle: "italic", lineHeight: 1.4, padding: "0 4px",
           }}>
             {scene.caption}
           </div>
@@ -70,22 +52,12 @@ function SceneCard({ scene, photos, p, index }) {
       {/* ── Prose ── */}
       <div style={{ flex: 1 }}>
         <div style={{
-          fontSize: "0.68rem",
-          fontWeight: 800,
-          textTransform: "uppercase",
-          letterSpacing: "0.13em",
-          color: p.hero,
-          marginBottom: "0.5rem",
+          fontSize: "0.68rem", fontWeight: 800, textTransform: "uppercase",
+          letterSpacing: "0.13em", color: p.hero, marginBottom: "0.5rem",
         }}>
           {scene.sceneTitle}
         </div>
-        <p style={{
-          fontSize: "0.95rem",
-          lineHeight: 1.8,
-          color: p.text,
-          fontWeight: 600,
-          margin: 0,
-        }}>
+        <p style={{ fontSize: "0.95rem", lineHeight: 1.8, color: p.text, fontWeight: 600, margin: 0 }}>
           {scene.prose}
         </p>
       </div>
@@ -95,7 +67,6 @@ function SceneCard({ scene, photos, p, index }) {
 
 /* ── Chapter block ─────────────────────────────────────────────────────── */
 function ChapterBlock({ chapter, photos, p, chapterIndex }) {
-  /* Support both old shape (prose + photoIndex) and new shape (scenes[]) */
   const scenes = chapter.scenes && chapter.scenes.length > 0
     ? chapter.scenes
     : [{
@@ -107,22 +78,12 @@ function ChapterBlock({ chapter, photos, p, chapterIndex }) {
 
   return (
     <div style={{ marginBottom: "3rem" }}>
-
       {/* Date divider */}
-      <div style={{
-        display: "flex",
-        alignItems: "center",
-        gap: "1rem",
-        marginBottom: "1.75rem",
-      }}>
+      <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginBottom: "1.75rem" }}>
         <div style={{ flex: 1, height: "1px", background: `${p.text}18` }} />
         <div style={{
-          fontSize: "0.65rem",
-          fontWeight: 800,
-          textTransform: "uppercase",
-          letterSpacing: "0.15em",
-          color: p.muted,
-          whiteSpace: "nowrap",
+          fontSize: "0.65rem", fontWeight: 800, textTransform: "uppercase",
+          letterSpacing: "0.15em", color: p.muted, whiteSpace: "nowrap",
         }}>
           {chapter.timeLabel || `Chapter ${chapter.num}`}
           {chapter.date ? `  ·  ${chapter.date}` : ""}
@@ -133,53 +94,30 @@ function ChapterBlock({ chapter, photos, p, chapterIndex }) {
       {/* Chapter heading */}
       <div style={{ display: "flex", alignItems: "baseline", gap: "0.75rem", marginBottom: "0.4rem" }}>
         <span style={{
-          background: p.hero,
-          color: "#fff",
-          fontSize: "0.65rem",
-          fontWeight: 800,
-          padding: "0.2rem 0.65rem",
-          borderRadius: "100px",
-          textTransform: "uppercase",
-          letterSpacing: "0.08em",
-          flexShrink: 0,
+          background: p.hero, color: "#fff", fontSize: "0.65rem", fontWeight: 800,
+          padding: "0.2rem 0.65rem", borderRadius: "100px",
+          textTransform: "uppercase", letterSpacing: "0.08em", flexShrink: 0,
         }}>
           Ch. {chapter.num}
         </span>
         <h3 style={{
-          fontFamily: "'Abril Fatface', serif",
-          fontSize: "1.4rem",
-          color: p.text,
-          lineHeight: 1.15,
-          margin: 0,
+          fontFamily: "'Abril Fatface', serif", fontSize: "1.4rem",
+          color: p.text, lineHeight: 1.15, margin: 0,
         }}>
           {chapter.title}
         </h3>
       </div>
 
-      {/* Location + research summary */}
       {(chapter.location || chapter.researchSummary) && (
-        <div style={{
-          fontSize: "0.78rem",
-          color: p.muted,
-          fontWeight: 600,
-          marginBottom: "1.75rem",
-          paddingLeft: "0.25rem",
-        }}>
+        <div style={{ fontSize: "0.78rem", color: p.muted, fontWeight: 600, marginBottom: "1.75rem", paddingLeft: "0.25rem" }}>
           {chapter.location && <span>📍 {chapter.location}</span>}
           {chapter.location && chapter.researchSummary && <span style={{ margin: "0 0.5rem" }}>·</span>}
           {chapter.researchSummary && <span style={{ fontStyle: "italic" }}>{chapter.researchSummary}</span>}
         </div>
       )}
 
-      {/* Scenes */}
       {scenes.map((scene, i) => (
-        <SceneCard
-          key={i}
-          scene={scene}
-          photos={photos}
-          p={p}
-          index={chapterIndex * 10 + i}
-        />
+        <SceneCard key={i} scene={scene} photos={photos} p={p} index={chapterIndex * 10 + i} />
       ))}
     </div>
   );
@@ -189,13 +127,9 @@ function ChapterBlock({ chapter, photos, p, chapterIndex }) {
 function HighlightCard({ item, p }) {
   return (
     <div style={{
-      background: p.surface,
-      borderRadius: "16px",
-      padding: "1rem 1.1rem",
+      background: p.surface, borderRadius: "16px", padding: "1rem 1.1rem",
       border: `2px solid ${p.hero}22`,
-      display: "flex",
-      flexDirection: "column",
-      gap: "0.3rem",
+      display: "flex", flexDirection: "column", gap: "0.3rem",
     }}>
       <div style={{ fontSize: "1.8rem" }}>{item.icon}</div>
       <div style={{ fontSize: "0.68rem", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.1em", color: p.muted }}>{item.label}</div>
@@ -250,7 +184,6 @@ export default function StorybookView({ storybook, photos, p, onRestart, onRegen
 
   if (!storybook) return null;
 
-  /* Collect all photos across all places for the cover strip */
   const allPhotos = photos || [];
 
   return (
@@ -260,10 +193,8 @@ export default function StorybookView({ storybook, photos, p, onRestart, onRegen
       {/* ── COVER ── */}
       <div style={{
         background: `linear-gradient(145deg, ${p.hero}, ${p.secondary})`,
-        padding: "4rem 2rem",
-        textAlign: "center",
-        position: "relative",
-        overflow: "hidden",
+        padding: "4rem 2rem", textAlign: "center",
+        position: "relative", overflow: "hidden",
       }}>
         <div style={{ position: "absolute", width: "300px", height: "300px", borderRadius: "50%", border: "2px dashed rgba(255,255,255,0.2)", top: "-80px", right: "-80px", pointerEvents: "none" }} />
         <div style={{ position: "absolute", width: "200px", height: "200px", borderRadius: "50%", border: "2px dashed rgba(255,255,255,0.15)", bottom: "-60px", left: "-60px", pointerEvents: "none" }} />
@@ -277,24 +208,18 @@ export default function StorybookView({ storybook, photos, p, onRestart, onRegen
             {storybook.coverSubtitle}
           </p>
 
-          {/* Scattered polaroid cover strip */}
           {allPhotos.length > 0 && (
             <div style={{ display: "flex", gap: "0.5rem", justifyContent: "center", flexWrap: "wrap" }}>
               {allPhotos.slice(0, 5).map((photo, i) => {
                 const rotations = [-5, 3, -2, 6, -4];
                 return (
                   <div key={i} style={{
-                    background: "#fff",
-                    padding: "6px 6px 28px",
+                    background: "#fff", padding: "6px 6px 28px",
                     transform: `rotate(${rotations[i] || 0}deg)`,
                     boxShadow: "2px 3px 8px rgba(0,0,0,0.25)",
                     transition: "transform 0.2s",
                   }}>
-                    <img
-                      src={URL.createObjectURL(photo)}
-                      alt=""
-                      style={{ width: "72px", height: "72px", objectFit: "cover", display: "block" }}
-                    />
+                    <img src={URL.createObjectURL(photo)} alt="" style={{ width: "72px", height: "72px", objectFit: "cover", display: "block" }} />
                   </div>
                 );
               })}
@@ -306,13 +231,13 @@ export default function StorybookView({ storybook, photos, p, onRestart, onRegen
       {/* ── BODY ── */}
       <div style={{ flex: 1, maxWidth: "720px", width: "100%", margin: "0 auto", padding: "2.5rem 1.5rem" }}>
 
+        {/* ── NARRATION PLAYER ── sits right below the cover, before intro ── */}
+        <NarrationPlayer storybook={storybook} p={p} />
+
         {/* Introduction */}
         <div style={{
-          background: p.card,
-          border: `3px solid ${p.surface}`,
-          borderRadius: "20px",
-          padding: "1.75rem",
-          marginBottom: "3rem",
+          background: p.card, border: `3px solid ${p.surface}`,
+          borderRadius: "20px", padding: "1.75rem", marginBottom: "3rem",
           boxShadow: `5px 5px 0 ${p.secondary}22`,
         }}>
           <div style={{ fontSize: "0.68rem", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.15em", color: p.hero, marginBottom: "0.75rem" }}>Introduction</div>
@@ -323,13 +248,7 @@ export default function StorybookView({ storybook, photos, p, onRestart, onRegen
         <h2 style={{ fontFamily: "'Abril Fatface', serif", fontSize: "1.6rem", color: p.text, marginBottom: "2rem" }}>Your Story 📖</h2>
 
         {(storybook.chapters || []).map((chapter, i) => (
-          <ChapterBlock
-            key={i}
-            chapter={chapter}
-            photos={allPhotos}
-            p={p}
-            chapterIndex={i}
-          />
+          <ChapterBlock key={i} chapter={chapter} photos={allPhotos} p={p} chapterIndex={i} />
         ))}
 
         {/* Highlights */}
@@ -345,11 +264,8 @@ export default function StorybookView({ storybook, photos, p, onRestart, onRegen
         {/* Timeline */}
         {storybook.timeline && storybook.timeline.length > 0 && (
           <div style={{
-            background: p.card,
-            border: `3px solid ${p.surface}`,
-            borderRadius: "20px",
-            padding: "1.75rem",
-            marginBottom: "2rem",
+            background: p.card, border: `3px solid ${p.surface}`,
+            borderRadius: "20px", padding: "1.75rem", marginBottom: "2rem",
             boxShadow: `5px 5px 0 ${p.tertiary}22`,
           }}>
             <h2 style={{ fontFamily: "'Abril Fatface', serif", fontSize: "1.4rem", color: p.text, marginBottom: "1.25rem" }}>Timeline 🗓</h2>
@@ -363,11 +279,8 @@ export default function StorybookView({ storybook, photos, p, onRestart, onRegen
         {storybook.reflection && (
           <div style={{
             background: `linear-gradient(135deg, ${p.hero}12, ${p.secondary}12)`,
-            border: `3px solid ${p.hero}33`,
-            borderRadius: "20px",
-            padding: "2rem",
-            marginBottom: "2.5rem",
-            textAlign: "center",
+            border: `3px solid ${p.hero}33`, borderRadius: "20px",
+            padding: "2rem", marginBottom: "2.5rem", textAlign: "center",
           }}>
             <div style={{ fontSize: "2rem", marginBottom: "0.75rem" }}>🌅</div>
             <h2 style={{ fontFamily: "'Abril Fatface', serif", fontSize: "1.4rem", color: p.text, marginBottom: "0.75rem" }}>Reflection</h2>
