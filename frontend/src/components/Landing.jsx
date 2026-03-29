@@ -1,157 +1,211 @@
 import { useState } from "react";
 
-const Sticker = ({ emoji, style, cls }) => (
-  <div className={cls} style={{
-    position: "absolute", fontSize: "3.5rem", userSelect: "none",
-    filter: "drop-shadow(2px 4px 8px rgba(0,0,0,0.15))", ...style
-  }}>{emoji}</div>
-);
-
-const Tag = ({ children, color, bg }) => (
-  <span style={{ background: bg, color, fontWeight: 800, fontSize: "0.75rem", padding: "0.3rem 0.85rem", borderRadius: "100px", letterSpacing: "0.05em", textTransform: "uppercase", border: `2px solid ${color}22` }}>
-    {children}
-  </span>
-);
-
 export default function Landing({ p, palettes, onPalette, onStart }) {
   const [hovered, setHovered] = useState(null);
 
   return (
-    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+    <div style={{
+      minHeight: "100vh",
+      display: "flex",
+      flexDirection: "column",
+      background: p.bg,
+      color: p.text,
+      fontFamily: "'Nunito', sans-serif",
+      transition: "background 0.5s, color 0.4s",
+    }}>
 
       {/* NAV */}
-      <nav style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "1.25rem 2.5rem" }}>
-        <div style={{ fontFamily: "'Abril Fatface', serif", fontSize: "1.6rem", color: p.hero, letterSpacing: "-0.01em" }}>
-          Postcards
-          <span style={{ color: p.secondary }}>I Never Sent</span>
+      <nav style={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        padding: "1.75rem 3rem",
+        borderBottom: `1px solid ${p.text}12`,
+      }}>
+        <div style={{
+          fontFamily: "'Abril Fatface', serif",
+          fontSize: "1.25rem",
+          letterSpacing: "-0.01em",
+          color: p.text,
+        }}>
+          Postcards<span style={{ color: p.hero }}>.</span>
         </div>
 
-        {/* Palette switcher */}
-        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", background: p.card, padding: "0.5rem 1rem", borderRadius: "100px", border: `2px solid ${p.surface}`, boxShadow: `0 2px 12px rgba(0,0,0,0.08)` }}>
+        {/* Palette dots */}
+        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
           {palettes.map((pal) => (
             <button
               key={pal.id}
-              title={pal.name}
+              title={`${pal.emoji} ${pal.name}`}
               onClick={() => onPalette(pal)}
               onMouseEnter={() => setHovered(pal.id)}
               onMouseLeave={() => setHovered(null)}
               style={{
-                width: "28px", height: "28px", borderRadius: "50%",
-                background: `linear-gradient(135deg, ${pal.hero} 50%, ${pal.secondary} 100%)`,
-                border: p.id === pal.id ? `3px solid ${p.text}` : "3px solid transparent",
-                transform: hovered === pal.id || p.id === pal.id ? "scale(1.25)" : "scale(1)",
-                transition: "all 0.2s", padding: 0, outline: "none",
-                boxShadow: p.id === pal.id ? `0 0 0 2px ${p.card}, 0 0 0 4px ${pal.hero}` : "none",
+                width: "10px",
+                height: "10px",
+                borderRadius: "50%",
+                background: pal.hero,
+                border: "2px solid transparent",
+                outline: p.id === pal.id ? `2px solid ${pal.hero}` : "none",
+                outlineOffset: "2px",
+                transform: hovered === pal.id || p.id === pal.id ? "scale(1.5)" : "scale(1)",
+                transition: "all 0.2s",
+                padding: 0,
               }}
             />
           ))}
-          <span style={{ fontSize: "0.8rem", color: p.muted, fontWeight: 700, marginLeft: "0.25rem" }}>{p.emoji} {p.name}</span>
+          <span style={{ fontSize: "0.7rem", fontWeight: 700, color: p.muted, marginLeft: "0.5rem" }}>{p.emoji}</span>
         </div>
       </nav>
 
       {/* HERO */}
-      <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "2rem", position: "relative", minHeight: "80vh" }}>
-
-        {/* Floating stickers */}
-        <Sticker emoji="🗺️" cls="float-a" style={{ top: "8%",  left: "5%",  fontSize: "5rem" }} />
-        <Sticker emoji="📸" cls="float-b" style={{ top: "12%", right: "8%", fontSize: "5rem" }} />
-        <Sticker emoji="🎒" cls="float-a" style={{ bottom: "15%", left: "7%", fontSize: "5rem" }} />
-        <Sticker emoji="🌍" cls="float-b" style={{ bottom: "20%", right: "5%", fontSize: "5rem" }} />
-        <Sticker emoji="⭐" cls="float-a" style={{ top: "35%", left: "3%", fontSize: "5rem" }} />
-        <Sticker emoji="🎫" cls="float-b" style={{ top: "55%", right: "4%", fontSize: "5rem" }} />
-
-        {/* Big decorative circle */}
-        <div style={{ position: "absolute", width: "600px", height: "600px", borderRadius: "50%", border: `3px dashed ${p.hero}33`, top: "50%", left: "50%", transform: "translate(-50%, -50%)", pointerEvents: "none" }} />
-
-        {/* CENTER CONTENT */}
-        <div style={{ textAlign: "center", maxWidth: "680px", position: "relative", zIndex: 1 }}>
-
-          <div style={{ display: "flex", gap: "0.5rem", justifyContent: "center", marginBottom: "1.5rem", flexWrap: "wrap" }}>
-            <Tag color={p.hero} bg={`${p.hero}18`}>Gemini AI</Tag>
-            <Tag color={p.secondary} bg={`${p.secondary}18`}>ElevenLabs</Tag>
-            <Tag color={p.tertiary === "#FFE66D" ? "#6B5E00" : p.tertiary} bg={`${p.tertiary}30`}>Snowflake</Tag>
+      <div style={{
+        flex: 1,
+        display: "grid",
+        gridTemplateColumns: "1fr 1fr",
+        maxWidth: "1100px",
+        margin: "0 auto",
+        width: "100%",
+        padding: "5rem 3rem",
+        alignItems: "center",
+        gap: "4rem",
+      }}>
+        {/* LEFT */}
+        <div>
+          <div style={{
+            fontSize: "0.65rem",
+            fontWeight: 800,
+            letterSpacing: "0.2em",
+            textTransform: "uppercase",
+            color: p.hero,
+            marginBottom: "1.5rem",
+          }}>
+            AI Travel Storybook
           </div>
 
           <h1 style={{
             fontFamily: "'Abril Fatface', serif",
-            fontSize: "clamp(3.5rem, 9vw, 7rem)",
-            lineHeight: 0.95,
-            color: p.text,
-            marginBottom: "0.1em",
+            fontSize: "clamp(3rem, 4.5vw, 4.5rem)",
+            lineHeight: 1.0,
             letterSpacing: "-0.02em",
+            color: p.text,
+            marginBottom: "1.5rem",
           }}>
             Your trip,<br />
-            <span style={{ color: p.hero, WebkitTextStroke: `3px ${p.hero}`, WebkitTextFillColor: "transparent" }}>retold</span>{" "}
-            <span style={{ color: p.secondary }}>beautifully.</span>
+            <span style={{ color: p.hero }}>retold</span><br />
+            beautifully.
           </h1>
 
-          <p style={{ fontSize: "1.15rem", color: p.muted, maxWidth: "480px", margin: "1.5rem auto 2.5rem", lineHeight: 1.65, fontWeight: 600 }}>
-            Drop your photos, videos & memories. Our AI turns them into a stunning storybook of your choice, video, website, scrapbook, or slideshow. ✨
+          <p style={{
+            fontSize: "0.97rem",
+            lineHeight: 1.75,
+            color: p.muted,
+            fontWeight: 600,
+            maxWidth: "380px",
+            marginBottom: "2.5rem",
+          }}>
+            Drop your photos and memories. Get back a stunning storybook — video, scrapbook, website, or slideshow.
           </p>
 
-          {/* CTA */}
-          <div style={{ display: "flex", gap: "1rem", justifyContent: "center", flexWrap: "wrap" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "1.25rem" }}>
             <button
               onClick={onStart}
               style={{
-                background: p.hero, color: "#fff", border: "none",
-                padding: "1.1rem 3rem", borderRadius: "100px",
-                fontSize: "1.1rem", fontWeight: 800,
-                boxShadow: `4px 4px 0px ${p.text}`,
-                transition: "all 0.15s",
-                letterSpacing: "0.01em",
+                background: p.hero,
+                color: "#fff",
+                border: "none",
+                padding: "0.9rem 2.25rem",
+                borderRadius: "6px",
+                fontSize: "0.9rem",
+                fontWeight: 800,
+                letterSpacing: "0.02em",
+                transition: "all 0.2s",
+                boxShadow: `0 4px 20px ${p.hero}44`,
               }}
-              onMouseEnter={e => { e.currentTarget.style.transform = "translate(-2px,-2px)"; e.currentTarget.style.boxShadow = `6px 6px 0px ${p.text}`; }}
-              onMouseLeave={e => { e.currentTarget.style.transform = "translate(0,0)"; e.currentTarget.style.boxShadow = `4px 4px 0px ${p.text}`; }}
+              onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = `0 8px 28px ${p.hero}55`; }}
+              onMouseLeave={e => { e.currentTarget.style.transform = ""; e.currentTarget.style.boxShadow = `0 4px 20px ${p.hero}44`; }}
             >
-              Start my storybook ✈️
+              Start my storybook
             </button>
-            <button style={{
-              background: "transparent", color: p.text,
-              border: `3px solid ${p.text}`, padding: "1.1rem 2rem",
-              borderRadius: "100px", fontSize: "1rem", fontWeight: 700,
-              transition: "all 0.15s",
-            }}
-              onMouseEnter={e => { e.currentTarget.style.background = p.text; e.currentTarget.style.color = p.card; }}
-              onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = p.text; }}
-            >See an example</button>
+            <span style={{ fontSize: "0.8rem", color: p.muted, fontWeight: 600 }}>Free · No account needed</span>
           </div>
 
-          {/* FORMAT pills */}
-          <div style={{ display: "flex", gap: "0.6rem", justifyContent: "center", marginTop: "2.5rem", flexWrap: "wrap" }}>
-            {[["🎬", "Video"], ["🌐", "Website"], ["📖", "Scrapbook"], ["🎞", "Slideshow"]].map(([ic, lbl]) => (
-              <div key={lbl} style={{ background: p.card, border: `2px solid ${p.surface}`, borderRadius: "12px", padding: "0.6rem 1rem", fontSize: "0.85rem", fontWeight: 700, color: p.muted, display: "flex", alignItems: "center", gap: "0.4rem", boxShadow: `2px 2px 0 ${p.surface}` }}>
-                <span>{ic}</span> {lbl}
+          {/* Format icons */}
+          <div style={{
+            display: "flex",
+            gap: "1.5rem",
+            marginTop: "3rem",
+            paddingTop: "2rem",
+            borderTop: `1px solid ${p.text}10`,
+          }}>
+            {[["🎬", "Video"], ["🌐", "Website"], ["📖", "Scrapbook"], ["🎞", "Slides"]].map(([ic, lbl]) => (
+              <div key={lbl} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.25rem" }}>
+                <span style={{ fontSize: "1.1rem" }}>{ic}</span>
+                <span style={{ fontSize: "0.6rem", fontWeight: 800, color: p.muted, letterSpacing: "0.08em", textTransform: "uppercase" }}>{lbl}</span>
               </div>
             ))}
           </div>
         </div>
-      </div>
 
-      {/* PALETTE SHOWCASE ROW */}
-      <div style={{ padding: "1.5rem 2.5rem", borderTop: `3px solid ${p.surface}`, background: p.card }}>
-        <p style={{ textAlign: "center", fontSize: "0.75rem", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.15em", color: p.muted, marginBottom: "1rem" }}>Pick your vibe</p>
-        <div style={{ display: "flex", gap: "0.75rem", justifyContent: "center", flexWrap: "wrap" }}>
-          {palettes.map((pal) => (
-            <button key={pal.id} onClick={() => onPalette(pal)} style={{
-              background: pal.bg, border: `3px solid ${p.id === pal.id ? pal.hero : "transparent"}`,
-              borderRadius: "14px", padding: "0.75rem 1.25rem", cursor: "pointer",
-              transition: "all 0.2s", display: "flex", alignItems: "center", gap: "0.5rem",
-              transform: p.id === pal.id ? "scale(1.08) translateY(-2px)" : "scale(1)",
-              boxShadow: p.id === pal.id ? `3px 3px 0 ${pal.hero}` : "none",
+        {/* RIGHT — polaroid stack */}
+        <div style={{ position: "relative", height: "400px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div style={{
+            position: "absolute",
+            width: "280px", height: "280px",
+            borderRadius: "50%",
+            background: `${p.hero}0C`,
+            top: "50%", left: "50%",
+            transform: "translate(-50%,-50%)",
+          }} />
+          {[
+            { rot: "-8deg", x: "-55px", y: "15px", z: 1, emoji: "🗼", label: "Tokyo · Jan" },
+            { rot:  "5deg", x:  "45px", y: "-25px", z: 2, emoji: "🚋", label: "Lisbon · Mar" },
+            { rot: "-2deg", x:  "-5px", y:  "45px", z: 3, emoji: "⛪", label: "Milan · Feb" },
+          ].map((card, i) => (
+            <div key={i} style={{
+              position: "absolute",
+              transform: `rotate(${card.rot}) translate(${card.x}, ${card.y})`,
+              zIndex: card.z,
+              background: "#fff",
+              padding: "10px 10px 42px",
+              boxShadow: "0 8px 32px rgba(0,0,0,0.1), 0 1px 4px rgba(0,0,0,0.06)",
+              width: "160px",
             }}>
-              <span style={{ fontSize: "1.3rem" }}>{pal.emoji}</span>
-              <div>
-                <div style={{ fontSize: "0.78rem", fontWeight: 800, color: pal.text }}>{pal.name}</div>
-                <div style={{ display: "flex", gap: "3px", marginTop: "3px" }}>
-                  {[pal.hero, pal.secondary, pal.tertiary].map((c, i) => (
-                    <div key={i} style={{ width: "8px", height: "8px", borderRadius: "50%", background: c }} />
-                  ))}
-                </div>
+              <div style={{
+                width: "140px", height: "120px",
+                background: `${p.hero}${["14","0E","09"][i]}`,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontSize: "2.5rem",
+              }}>
+                {card.emoji}
               </div>
-            </button>
+              <div style={{
+                marginTop: "8px",
+                fontFamily: "'Georgia', serif",
+                fontSize: "0.65rem", color: "#aaa",
+                textAlign: "center", fontStyle: "italic",
+              }}>
+                {card.label}
+              </div>
+            </div>
           ))}
         </div>
+      </div>
+
+      {/* BOTTOM BAR */}
+      <div style={{
+        borderTop: `1px solid ${p.text}10`,
+        padding: "1.25rem 3rem",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+      }}>
+        <div style={{ display: "flex", gap: "2rem" }}>
+          {["Gemini AI", "ElevenLabs", "Google Search"].map(s => (
+            <span key={s} style={{ fontSize: "0.7rem", fontWeight: 700, color: p.muted, letterSpacing: "0.04em" }}>{s}</span>
+          ))}
+        </div>
+        <span style={{ fontSize: "0.7rem", fontWeight: 700, color: p.muted }}>{p.emoji} {p.name}</span>
       </div>
     </div>
   );
