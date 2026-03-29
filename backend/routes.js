@@ -1,3 +1,4 @@
+import { buildNarrationScript, generateNarration } from './narration.js';
 import express from 'express';
 import multer from 'multer';
 import fs from 'fs';
@@ -362,4 +363,53 @@ Return ONLY the JSON object, nothing else.
     res.status(500).json({ error: error.message });
   }
 });
+
+// POST /api/narrate
+// Receives storybook JSON, returns MP3 audio
+router.post('/narrate', async (req, res) => {
+  try {
+    const { storybook } = req.body;
+
+    // Make sure storybook was sent
+    if (!storybook) {
+      return res.status(400).json({
+        error: 'No storybook provided',
+        detail: 'Send the storybook JSON in the request body'
+      });
+    }
+
+    // Build the narration script from storybook content
+    const script = buildNarrationScript(storybook);
+
+    if (!script || script.length === 0) {
+      return res.status(400).json({
+        error: 'Empty narration script',
+        detail: 'The storybook has no content to narrate'
+      });
+    }
+
+    // ElevenLabs has a character limit per request on free tier (2500 chars)
+    // If script is too long, trim it gracefully
+    const trimmedScript = script.length > 2500
+      ? script.substring(0, 2497) + '...'
+      : script;
+
+    // Generate audio
+    const audioBuffer = await generateNarration(trimmedScript);
+
+    // Send audio back as MP3
+    res.set({
+      'Content-Type': 'audio/mpeg',
+      'Content-Length': audioBuffer.length,
+      'Content-Disposition': 'inline; filename="storybook-narration.mp3"',
+    });
+
+    res.send(audioBuffer);
+
+  } catch (error) {
+    console.error('Narration error:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;
