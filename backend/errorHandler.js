@@ -42,6 +42,14 @@ export function errorHandler(err, req, res, next) {
     });
   }
 
+  // ElevenLabs API errors
+  if (err.message?.includes('ElevenLabs') || err.message?.includes('quota_exceeded')) {
+    return res.status(429).json({
+      error: 'ElevenLabs limit reached',
+      detail: 'Audio generation quota exceeded. Try again later.'
+    });
+  }
+
   // Generic fallback for anything else
   res.status(500).json({
     error: 'Something went wrong',
