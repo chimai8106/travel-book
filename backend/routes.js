@@ -126,8 +126,15 @@ ${placesSummary}
 IMPORTANT: Each place has its own mood and traveler notes listed above.
 When writing each chapter, reflect that specific place's mood and incorporate
 the traveler's notes for that place into the prose. Do not mix moods between places.
+
 PHOTOS ATTACHED (${allImageParts.length} total):
 ${imageGuide}
+
+### STYLE GUIDE (MANDATORY)
+- **Tone**: Observant, calm, and grounded. Write like a person who is looking closely at a scene, not a marketing brochure.
+- **Language**: Use "Plain English" but with precise vocabulary. Avoid flowery adjectives.
+- **Negative Constraints**: DO NOT use these words: "nestled," "tapestry," "vibrant," "breathtaking," "haven," "unforgettable," "hidden gem," "stunning," "bustling," or "heart of." 
+- **Focus**: Prioritize specific physical details (the color of a door, the shape of a shadow, the specific name of a street) over generic emotions.
 
 YOUR INSTRUCTIONS:
 
@@ -144,11 +151,13 @@ For every photo, identify:
 - The exact scene (e.g. a beachfront pier, a rooftop cafe, a street mural, a palm-lined promenade)
 - The atmosphere and time of day
 - Any specific landmark or feature visible
+- Identify specific objects: A certain brand of coffee, a specific street sign, the texture of the pavement.
+- Note the light: Is it harsh midday sun, or the soft blue of dusk? Mention this in the prose.
 - How it connects to the place it was taken in
 Even if a photo shows a specific sub-location (like a pier inside a beach area), identify and name it specifically.
 
 STEP 3 — WRITE THE STORYBOOK
-- Write one chapter per place, in chronological order by date
+- Write one chapter per place with as many sentences as needed  to perfectly journal the place, in chronological order by date
 - If the same place appears on multiple dates, treat each date as a separate chapter
 - Each chapter title should be the specific place name
 - The prose should weave together your research about the place AND what you see in the photos
