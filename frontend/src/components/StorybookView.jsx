@@ -3,9 +3,8 @@ import ExportModal from "./ExportModal";
 import NarrationPlayer from "./NarrationPlayer";
 
 /* ── Polaroid scene card ───────────────────────────────────────────────── */
-function SceneCard({ scene, photos, p, index }) {
-  const photo = photos && photos[scene.photoIndex] != null ? photos[scene.photoIndex] : null;
-  const photoUrl = photo ? URL.createObjectURL(photo) : null;
+function SceneCard({ photoFile, caption, sceneTitle, prose, p, index }) {
+  const photoUrl = photoFile ? URL.createObjectURL(photoFile) : null;
   const isEven = index % 2 === 0;
   const tilt = isEven ? "rotate(-1.8deg)" : "rotate(1.5deg)";
 
@@ -35,7 +34,7 @@ function SceneCard({ scene, photos, p, index }) {
             background: p.surface, display: "flex", alignItems: "center", justifyContent: "center",
           }}>
             {photoUrl
-              ? <img src={photoUrl} alt={scene.caption} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+              ? <img src={photoUrl} alt={caption} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
               : <span style={{ fontSize: "2rem", opacity: 0.3 }}>📷</span>
             }
           </div>
@@ -44,22 +43,26 @@ function SceneCard({ scene, photos, p, index }) {
             fontSize: "0.72rem", color: "#888", textAlign: "center",
             fontStyle: "italic", lineHeight: 1.4, padding: "0 4px",
           }}>
-            {scene.caption}
+            {caption}
           </div>
         </div>
       </div>
 
       {/* ── Prose ── */}
       <div style={{ flex: 1 }}>
-        <div style={{
-          fontSize: "0.68rem", fontWeight: 800, textTransform: "uppercase",
-          letterSpacing: "0.13em", color: p.hero, marginBottom: "0.5rem",
-        }}>
-          {scene.sceneTitle}
-        </div>
-        <p style={{ fontSize: "0.95rem", lineHeight: 1.8, color: p.text, fontWeight: 600, margin: 0 }}>
-          {scene.prose}
-        </p>
+        {sceneTitle && (
+          <div style={{
+            fontSize: "0.68rem", fontWeight: 800, textTransform: "uppercase",
+            letterSpacing: "0.13em", color: p.hero, marginBottom: "0.5rem",
+          }}>
+            {sceneTitle}
+          </div>
+        )}
+        {prose && (
+          <p style={{ fontSize: "0.95rem", lineHeight: 1.8, color: p.text, fontWeight: 600, margin: 0 }}>
+            {prose}
+          </p>
+        )}
       </div>
     </div>
   );
@@ -67,14 +70,33 @@ function SceneCard({ scene, photos, p, index }) {
 
 /* ── Chapter block ─────────────────────────────────────────────────────── */
 function ChapterBlock({ chapter, photos, p, chapterIndex }) {
-  const scenes = chapter.scenes && chapter.scenes.length > 0
-    ? chapter.scenes
-    : [{
-        sceneTitle: chapter.title,
-        prose: chapter.prose || "",
-        photoIndex: chapter.photoIndex ?? 0,
-        caption: chapter.caption || "",
-      }];
+  // Build scenes from photoIndices + captions arrays (new multi-photo format)
+  // Falls back gracefully to old single-photo format
+  const buildScenes = () => {
+    const indices = chapter.photoIndices ?? (chapter.photoIndex != null ? [chapter.photoIndex] : []);
+    const captions = chapter.captions ?? (chapter.caption ? [chapter.caption] : []);
+
+    if (indices.length > 0) {
+      return indices.map((globalIdx, i) => ({
+        photoFile: photos[globalIdx] ?? null,
+        caption: captions[i] ?? "",
+        // First scene gets the chapter prose; rest get a blank prose block
+        // (AI only writes one prose block per chapter in the prompt)
+        prose: i === 0 ? (chapter.prose ?? "") : "",
+        sceneTitle: i === 0 ? null : null, // could expose chapter.sceneTitle if AI adds it
+      }));
+    }
+
+    // Legacy fallback — no photos attached
+    return [{
+      photoFile: null,
+      caption: chapter.caption ?? "",
+      prose: chapter.prose ?? "",
+      sceneTitle: null,
+    }];
+  };
+
+  const scenes = buildScenes();
 
   return (
     <div style={{ marginBottom: "3rem" }}>
@@ -116,8 +138,27 @@ function ChapterBlock({ chapter, photos, p, chapterIndex }) {
         </div>
       )}
 
+      {/* Chapter prose (shown once, above photos) */}
+      {chapter.prose && (
+        <p style={{
+          fontSize: "0.95rem", lineHeight: 1.8, color: p.text,
+          fontWeight: 600, marginBottom: "2rem",
+        }}>
+          {chapter.prose}
+        </p>
+      )}
+
+      {/* One SceneCard per photo */}
       {scenes.map((scene, i) => (
-        <SceneCard key={i} scene={scene} photos={photos} p={p} index={chapterIndex * 10 + i} />
+        <SceneCard
+          key={i}
+          photoFile={scene.photoFile}
+          caption={scene.caption}
+          sceneTitle={scene.sceneTitle}
+          prose={null} // prose already rendered above
+          p={p}
+          index={chapterIndex * 10 + i}
+        />
       ))}
     </div>
   );
@@ -231,7 +272,7 @@ export default function StorybookView({ storybook, photos, p, onRestart, onRegen
       {/* ── BODY ── */}
       <div style={{ flex: 1, maxWidth: "720px", width: "100%", margin: "0 auto", padding: "2.5rem 1.5rem" }}>
 
-        {/* ── NARRATION PLAYER ── sits right below the cover, before intro ── */}
+        {/* ── NARRATION PLAYER ── */}
         <NarrationPlayer storybook={storybook} p={p} />
 
         {/* Introduction */}

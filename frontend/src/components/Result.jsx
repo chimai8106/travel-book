@@ -24,13 +24,30 @@ const Confetti = ({ p }) => (
   </div>
 );
 
-// Renamed from StorybookView → Result to avoid clashing with the imported StorybookView
+/**
+ * Sort places by date (earliest first) — mirrors backend's sortPlacesByDate().
+ * Returns a flat array of File objects in the same global order the AI indexed them.
+ */
+function buildSortedPhotos(places) {
+  if (!places || places.length === 0) return [];
+
+  const sorted = [...places].sort((a, b) => {
+    const da = a.date ? new Date(a.date) : null;
+    const db = b.date ? new Date(b.date) : null;
+    if (!da) return 1;
+    if (!db) return -1;
+    return da - db;
+  });
+
+  return sorted.flatMap(place => place.photos || []);
+}
+
 export default function Result({ storybook, tripData, photos, p, onRestart, onRegenerate, isRegenerating }) {
   const [currentStorybook, setCurrentStorybook] = useState(storybook);
   const [showConfetti, setShowConfetti] = useState(true);
   const [localIsRegenerating, setLocalIsRegenerating] = useState(false);
 
-  // Hide confetti after 5s — use useEffect, not useState
+  // Hide confetti after 5s
   useState(() => {
     const t = setTimeout(() => setShowConfetti(false), 5000);
     return () => clearTimeout(t);
@@ -49,14 +66,17 @@ export default function Result({ storybook, tripData, photos, p, onRestart, onRe
     }
   };
 
-  // If we have a real storybook, render the full view
+  // Build the correctly-sorted photo array.
+  // Priority: explicit photos prop → derive from tripData sorted by date (matching backend order)
+  const sortedPhotos = photos ?? buildSortedPhotos(tripData?.places);
+
   if (currentStorybook) {
     return (
       <div style={{ position: "relative" }}>
         {showConfetti && <Confetti p={p} />}
         <StorybookView
           storybook={currentStorybook}
-          photos={photos ?? tripData?.places?.flatMap(place => place.photos || [])}
+          photos={sortedPhotos}
           p={p}
           onRestart={onRestart}
           onRegenerate={onRegenerate ?? handleRegenerate}
@@ -66,7 +86,6 @@ export default function Result({ storybook, tripData, photos, p, onRestart, onRe
     );
   }
 
-  // Fallback if no storybook data
   return (
     <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "2rem" }}>
       <Confetti p={p} />

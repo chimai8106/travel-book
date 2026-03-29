@@ -1,4 +1,4 @@
-import { ElevenLabsClient } from 'elevenlabs';
+import { ElevenLabsClient } from '@elevenlabs/elevenlabs-js';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -22,12 +22,11 @@ export function buildNarrationScript(storybook) {
     if (chapter.researchSummary) parts.push(chapter.researchSummary);
     parts.push(chapter.prose);
 
-    // Read captions
-    if (chapter.captions && chapter.captions.length > 0) {
-      chapter.captions.forEach(caption => {
-        if (caption) parts.push(caption);
-      });
-    }
+    // Read captions (new multi-photo format)
+    const captions = chapter.captions ?? (chapter.caption ? [chapter.caption] : []);
+    captions.forEach(caption => {
+      if (caption) parts.push(caption);
+    });
   });
 
   // Highlights
@@ -42,7 +41,6 @@ export function buildNarrationScript(storybook) {
   parts.push('Final Reflection.');
   parts.push(storybook.reflection);
 
-  // Join everything into one clean script
   return parts
     .filter(Boolean)
     .join(' ')
