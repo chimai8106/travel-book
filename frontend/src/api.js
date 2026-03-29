@@ -14,15 +14,6 @@ function buildFormData(tripData) {
       formData.append(`photos_${i}`, file);
     });
   });
-  // ADD THIS 👇
-  console.log('=== FORMDATA DEBUG ===');
-  for (let [key, value] of formData.entries()) {
-    console.log(`${key}:`, value instanceof File ? `File(${value.name})` : value);
-  }
-  console.log('=== END FORMDATA DEBUG ===');
-
-  return formData;
-
   return formData;
 }
 
@@ -32,8 +23,14 @@ export async function generateStorybook(tripData) {
     body: buildFormData(tripData),
   });
   if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.error || `Server error ${res.status}`);
+    let errMsg = `Server error ${res.status}`;
+    try {
+      const err = await res.json();
+      errMsg = err.error || err.detail || errMsg;
+    } catch {
+      errMsg = await res.text().catch(() => errMsg);
+    }
+    throw new Error(errMsg);
   }
   const data = await res.json();
   if (!data.success) throw new Error(data.error || "Generation failed");
@@ -46,8 +43,14 @@ export async function regenerateStorybook(tripData) {
     body: buildFormData(tripData),
   });
   if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.error || `Server error ${res.status}`);
+    let errMsg = `Server error ${res.status}`;
+    try {
+      const err = await res.json();
+      errMsg = err.error || err.detail || errMsg;
+    } catch {
+      errMsg = await res.text().catch(() => errMsg);
+    }
+    throw new Error(errMsg);
   }
   const data = await res.json();
   if (!data.success) throw new Error(data.error || "Regeneration failed");

@@ -1,6 +1,7 @@
 import express from 'express';
 import multer from 'multer';
 import fs from 'fs';
+import qs from 'qs';
 import { modelWithSearch, imageToGeminiPart } from './gemini.js';
 import { sortPlacesByDate, buildPlacesSummary } from './organizer.js';
 import { validateTripInput } from './validator.js';
@@ -14,346 +15,208 @@ const storage = multer.diskStorage({
 
 const uploadAny = multer({ storage }).any();
 
-// Helper to parse places from either JSON array or bracket notation
-function parsePlaces(body) {
-  const placesMap = {};
-
-  // If places comes as a JSON array (multer collapses bracket keys)
-  if (body.places) {
-    let rawPlaces = body.places;
-    if (typeof rawPlaces === 'string') {
-      try { rawPlaces = JSON.parse(rawPlaces); } catch (e) {}
-    }
-    if (Array.isArray(rawPlaces)) {
-      rawPlaces.forEach((place, index) => {
-        placesMap[index] = { ...place };
-      });
-      return placesMap;
-    }
-  }
-
-  // Fallback: bracket notation places[0][name]
-  Object.keys(body).forEach(key => {
-    const match = key.match(/^places\[(\d+)\]\[(\w+)\]$/);
-    if (match) {
-      const index = match[1];
-      const field = match[2];
-      if (!placesMap[index]) placesMap[index] = {};
-      placesMap[index][field] = body[key];
-    }
-  });
-
-  return placesMap;
-}
-
-// ── STATUS ──
 router.get('/status', (req, res) => {
   res.json({
     status: 'ok',
     message: 'Storybook backend is running',
-    endpoints: {
-      generate: 'POST /api/generate-storybook',
-      regenerate: 'POST /api/regenerate',
-    },
+    endpoints: { generate: 'POST /api/generate-storybook', regenerate: 'POST /api/regenerate' },
     timestamp: new Date().toISOString()
   });
 });
 
-// ── GENERATE STORYBOOK ──
-router.post('/generate-storybook', uploadAny, validateTripInput, async (req, res) => {
-  console.log('RAW BODY KEYS:', Object.keys(req.body));
-  console.log('RAW BODY:', JSON.stringify(req.body, null, 2));
-  console.log('FILES:', req.files?.map(f => f.fieldname + ': ' + f.originalname));
+function parsePlaces(body, files) {
+  // multer may give us `places` as an already-nested object (when the client
+  // sends bracket-notation keys like places[0][name]) OR as flat bracket-string
+  // keys scattered across the body. Handle both.
+  let placesMap;
 
-  const uploadedFiles = req.files || [];
+  if (body.places && typeof body.places === 'object') {
+    // Already parsed into a nested object by multer — use it directly
+    placesMap = body.places;
+  } else {
+    // Flat bracket-notation strings — re-encode and parse with qs
+    const encoded = Object.entries(body)
+      .filter(([, v]) => typeof v === 'string')
+      .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
+      .join('&');
+    const parsed = qs.parse(encoded);
+    placesMap = parsed.places || {};
+  }
 
-  try {
-    const { trip_title } = req.body;
-
-    // Step 2 — Parse places
-    const placesMap = parsePlaces(req.body);
-    console.log('PARSED PLACES MAP:', JSON.stringify(placesMap, null, 2));
-
-    // Step 3 — Attach photos to their place
-    uploadedFiles.forEach(file => {
-      const match = file.fieldname.match(/^photos_(\d+)$/);
-      if (match) {
-        const index = match[1];
-        if (!placesMap[index]) placesMap[index] = {};
-        if (!placesMap[index].photos) placesMap[index].photos = [];
-        placesMap[index].photos.push(file);
-      }
-    });
-
-    const placesArray = Object.values(placesMap).filter(p => p.name);
-    console.log('PLACES ARRAY LENGTH:', placesArray.length);
-
-    if (placesArray.length === 0) {
-      return res.status(400).json({
-        error: 'No places found',
-        detail: 'Please add at least one place with photos'
-      });
+  (files || []).forEach(file => {
+    const match = file.fieldname.match(/^photos_(\d+)$/);
+    if (match) {
+      const index = match[1];
+      if (!placesMap[index]) placesMap[index] = {};
+      if (!placesMap[index].photos) placesMap[index].photos = [];
+      placesMap[index].photos.push(file);
     }
+  });
 
-    // Step 4 — Sort places by date
-    const sortedPlaces = sortPlacesByDate(placesArray.map(p => ({
-      ...p,
-      photoCount: p.photos ? p.photos.length : 0
-    })));
+  const placesArray = Object.values(placesMap).filter(p => p.name && p.name.trim() !== '');
 
-    // Step 5 — Build the places summary for the prompt
-    const placesSummary = buildPlacesSummary(sortedPlaces);
+  console.log('Final places:', placesArray.map(p => ({
+    name: p.name,
+    date: p.date,
+    photoCount: p.photos ? p.photos.length : 0
+  })));
 
-    // Step 6 — Build image parts in order (place by place)
-    const allImageParts = [];
-    const imageMapping = [];
+  return placesArray;
+}
 
-    sortedPlaces.forEach((place, placeIndex) => {
-      if (place.photos) {
-        place.photos.forEach((file, photoIndex) => {
-          allImageParts.push(imageToGeminiPart(file.path, file.mimetype));
-          imageMapping.push({
-            placeIndex,
-            placeName: place.name,
-            photoIndex,
-            globalIndex: allImageParts.length - 1
-          });
-        });
-      }
-    });
+function buildPrompt({ trip_title, placesSummary, allImageParts, imageGuide, isRewrite, style }) {
+  const styleNote = isRewrite
+    ? `This is a REWRITE — fresh angle, ${style || 'laid-back'} vibe, no repeated phrasing from before.`
+    : '';
 
-    // Step 7 — Build the image reference guide for Gemini
-    const imageGuide = imageMapping.map(item =>
-      `Image ${item.globalIndex + 1}: from place "${item.placeName}" (Place ${item.placeIndex + 1})`
-    ).join('\n');
+  return `
+You are a fun, relatable travel blogger writing a personal trip journal. Think the kind of blog people actually want to read — honest, specific, a little funny, genuinely excited about the small details. Not a travel brochure. Not a poem. Just a real person sharing what it was actually like to be there.
 
-    // Step 8 — Build the full prompt
-    const prompt = `
-You are an expert travel storyteller and photo analyst with access to Google Search.
-
-A traveler just returned from a trip and wants a beautiful, literary storybook.
+${styleNote}
 
 TRIP INFORMATION:
 - Trip Title: ${trip_title}
 
-PLACES VISITED (already sorted by date, earliest first):
+PLACES VISITED (sorted by date, earliest first):
 ${placesSummary}
 
-IMPORTANT: Each place has its own mood and traveler notes listed above.
-When writing each chapter, reflect that specific place's mood and incorporate
-the traveler's notes for that place into the prose. Do not mix moods between places.
 PHOTOS ATTACHED (${allImageParts.length} total):
 ${imageGuide}
 
 YOUR INSTRUCTIONS:
 
 STEP 1 — RESEARCH EACH PLACE
-Use Google Search to find detailed information about each place:
-- What is it? (park, shopping center, beach, neighborhood, museum, etc.)
-- What is it famous for?
-- Key features, landmarks, history
-- What do visitors typically experience there?
-This research will make your story rich and accurate.
+Use Google Search to look up each place — what kind of spot it is, what it's known for, what the vibe is like.
 
-STEP 2 — ANALYZE EACH PHOTO CAREFULLY
-For every photo, identify:
-- The exact scene (e.g. a beachfront pier, a rooftop cafe, a street mural, a palm-lined promenade)
-- The atmosphere and time of day
-- Any specific landmark or feature visible
-- How it connects to the place it was taken in
-Even if a photo shows a specific sub-location (like a pier inside a beach area), identify and name it specifically.
+STEP 2 — LOOK AT EVERY PHOTO CAREFULLY
+For each photo, figure out what's actually in it, the mood and light, and any specific detail worth calling out.
 
-STEP 3 — WRITE THE STORYBOOK
-- Write one chapter per place, in chronological order by date
-- If the same place appears on multiple dates, treat each date as a separate chapter
-- Each chapter title should be the specific place name
-- The prose should weave together your research about the place AND what you see in the photos
-- Photo captions should describe exactly what is visible in that specific photo
-- The story should flow naturally from one place to the next, like a journey
-- Each chapter must reflect the specific mood and notes of that place, not a general mood
+STEP 3 — WRITE THE JOURNAL
+One chapter per place. Each chapter is broken into SCENES — one scene per photo.
 
-Respond ONLY with valid JSON. No explanation, no markdown fences, no extra text. Just the raw JSON.
+TONE GUIDE (most important):
+- Write like you're telling a friend about the trip over drinks. Conversational, warm, a bit cheeky.
+- Use "we" or "I" naturally. Short sentences are fine. Incomplete ones too.
+- Mention real specific things — the name of the dish, what the guy said, what the light looked like.
+- It's okay to be funny or self-deprecating. Okay to say something was "touristy but we loved it anyway."
+- AVOID: flowery language, dramatic metaphors, words like "enveloped", "tapestry", "poignant", "embodied", "palpable", "visceral", "testament". Just say what you mean.
+- Each scene = a punchy mini blog paragraph.
 
-JSON format:
+SCENE RULES:
+- One scene = one photo. Never combine two photos into one scene.
+- A chapter with 4 photos gets exactly 4 scenes.
+- sceneTitle: casual and specific, like a blog subheading. E.g. "That coconut stall guy", "The mural we almost walked past"
+- prose: 3-5 sentences. Conversational. Describe what's in the photo and what it felt like.
+- caption: one short Instagram-style line
+- photoIndex: 0-based global index of the photo this scene describes
+
+Mood rule: reflect each place's mood in that chapter's scenes only.
+
+Respond ONLY with valid JSON. No markdown. No extra text.
+
 {
-  "coverTitle": "string - creative title for the whole trip",
-  "coverSubtitle": "string - one poetic line that captures the trip",
-  "introduction": "string - 3 to 4 sentence opening that sets the scene of the entire trip",
+  "coverTitle": "fun specific title",
+  "coverSubtitle": "one casual line capturing the vibe",
+  "introduction": "3-4 sentence blog-style opener",
   "chapters": [
     {
       "num": 1,
-      "title": "string - the place name",
-      "location": "string - city or district this place is in",
-      "date": "string - the date of this visit",
-      "timeLabel": "string - e.g. Day 1, Day 2 Morning, Final Evening",
-      "researchSummary": "string - 1 sentence about what this place is famous for",
-      "prose": "string - 4 to 6 sentences weaving together place research and photo observations",
-      "photoIndices": [0, 1, 2],
-      "captions": [
-        "string - specific caption for photo at index 0",
-        "string - specific caption for photo at index 1",
-        "string - specific caption for photo at index 2"
+      "title": "place name",
+      "location": "city or area",
+      "date": "date of visit",
+      "timeLabel": "e.g. Day 1",
+      "researchSummary": "one casual sentence about what this place is",
+      "scenes": [
+        {
+          "sceneTitle": "casual specific subheading",
+          "prose": "3-5 conversational sentences about this specific photo",
+          "photoIndex": 0,
+          "caption": "short Instagram-style caption"
+        }
       ]
     }
   ],
-  "highlights": [
-    { "icon": "emoji", "label": "string", "value": "string" }
-  ],
-  "timeline": [
-    {
-      "timeLabel": "string - e.g. Day 1 Morning",
-      "place": "string - place name",
-      "desc": "string - one vivid sentence about this stop"
-    }
-  ],
-  "reflection": "string - 3 to 4 sentence closing reflection on the whole trip"
+  "highlights": [{ "icon": "emoji", "label": "string", "value": "string" }],
+  "timeline": [{ "timeLabel": "string", "place": "string", "desc": "one punchy sentence" }],
+  "reflection": "3-4 honest, warm sentences. What will you actually remember?"
 }
 
-Rules:
-- photoIndices are 0-based global indices matching the image list above
-- Every photo must appear in exactly one chapter's photoIndices
-- captions array must have one entry per photo in photoIndices
-- highlights should cover: best moment, hidden gem, food/drink highlight, key vibe, most memorable scene
-- Write beautifully. Be specific. Name exact things you see. Avoid generic travel clichés.
-- Return ONLY the JSON object, nothing else.
-    `;
+- Every photo must appear in exactly one scene.
+- highlights: best meal, funniest moment, hidden gem, overall vibe, most surprising thing.
+- Return ONLY the JSON object.
+  `;
+}
 
-    // Step 9 — Send everything to Gemini with Google Search enabled
+router.post('/generate-storybook', uploadAny, async (req, res) => {
+  const uploadedFiles = req.files || [];
+  try {
+    const { trip_title } = req.body;
+    const placesArray = parsePlaces(req.body, uploadedFiles);
+
+    if (placesArray.length === 0) {
+      return res.status(400).json({ error: 'No places found', detail: 'Add at least one place with a name and photos' });
+    }
+
+    const sortedPlaces = sortPlacesByDate(placesArray.map(p => ({ ...p, photoCount: p.photos ? p.photos.length : 0 })));
+    const placesSummary = buildPlacesSummary(sortedPlaces);
+    const allImageParts = [];
+    const imageMapping = [];
+
+    sortedPlaces.forEach((place, placeIndex) => {
+      (place.photos || []).forEach((file, photoIndex) => {
+        allImageParts.push(imageToGeminiPart(file.path, file.mimetype));
+        imageMapping.push({ placeIndex, placeName: place.name, photoIndex, globalIndex: allImageParts.length - 1 });
+      });
+    });
+
+    const imageGuide = imageMapping.map(m =>
+      `Image ${m.globalIndex + 1} (global index ${m.globalIndex}): from place "${m.placeName}" (Place ${m.placeIndex + 1})`
+    ).join('\n');
+
+    const prompt = buildPrompt({ trip_title, placesSummary, allImageParts, imageGuide, isRewrite: false });
     const result = await modelWithSearch.generateContent([prompt, ...allImageParts]);
-    const rawText = result.response.text();
-
-    // Step 10 — Clean and parse the JSON
-    const cleaned = rawText.replace(/```json|```/g, '').trim();
+    const cleaned = result.response.text().replace(/```json|```/g, '').trim();
     const storybook = JSON.parse(cleaned);
 
-    // Step 11 — Clean up uploaded files
-    uploadedFiles.forEach(file => {
-      if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
-    });
-
-    // Step 12 — Send back to frontend
+    uploadedFiles.forEach(file => { if (fs.existsSync(file.path)) fs.unlinkSync(file.path); });
     res.json({ success: true, storybook });
-
   } catch (error) {
-    uploadedFiles.forEach(file => {
-      if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
-    });
+    uploadedFiles.forEach(file => { if (fs.existsSync(file.path)) fs.unlinkSync(file.path); });
     console.error('Error generating storybook:', error.message);
     res.status(500).json({ error: error.message });
   }
 });
 
-// ── REGENERATE ──
 router.post('/regenerate', uploadAny, validateTripInput, async (req, res) => {
   const uploadedFiles = req.files || [];
-
   try {
-    const { trip_title } = req.body;
-
-    // Parse places (same helper)
-    const placesMap = parsePlaces(req.body);
-
-    uploadedFiles.forEach(file => {
-      const match = file.fieldname.match(/^photos_(\d+)$/);
-      if (match) {
-        const index = match[1];
-        if (!placesMap[index]) placesMap[index] = {};
-        if (!placesMap[index].photos) placesMap[index].photos = [];
-        placesMap[index].photos.push(file);
-      }
-    });
-
-    const placesArray = Object.values(placesMap).filter(p => p.name);
-    const sortedPlaces = sortPlacesByDate(placesArray.map(p => ({
-      ...p,
-      photoCount: p.photos ? p.photos.length : 0
-    })));
-
+    const { trip_title, new_style } = req.body;
+    const placesArray = parsePlaces(req.body, uploadedFiles);
+    const sortedPlaces = sortPlacesByDate(placesArray.map(p => ({ ...p, photoCount: p.photos ? p.photos.length : 0 })));
     const placesSummary = buildPlacesSummary(sortedPlaces);
-
     const allImageParts = [];
     const imageMapping = [];
 
     sortedPlaces.forEach((place, placeIndex) => {
-      if (place.photos) {
-        place.photos.forEach((file, photoIndex) => {
-          allImageParts.push(imageToGeminiPart(file.path, file.mimetype));
-          imageMapping.push({
-            placeIndex,
-            placeName: place.name,
-            photoIndex,
-            globalIndex: allImageParts.length - 1
-          });
-        });
-      }
+      (place.photos || []).forEach((file, photoIndex) => {
+        allImageParts.push(imageToGeminiPart(file.path, file.mimetype));
+        imageMapping.push({ placeIndex, placeName: place.name, photoIndex, globalIndex: allImageParts.length - 1 });
+      });
     });
 
-    const imageGuide = imageMapping.map(item =>
-      `Image ${item.globalIndex + 1}: from place "${item.placeName}" (Place ${item.placeIndex + 1})`
+    const imageGuide = imageMapping.map(m =>
+      `Image ${m.globalIndex + 1} (global index ${m.globalIndex}): from place "${m.placeName}" (Place ${m.placeIndex + 1})`
     ).join('\n');
 
-    const prompt = `
-You are an expert travel storyteller. Rewrite this travel storybook with a completely fresh perspective.
-
-TRIP INFORMATION:
-- Trip Title: ${trip_title}
-
-PLACES VISITED (sorted by date):
-${placesSummary}
-
-IMPORTANT: Each place has its own mood and traveler notes listed above.
-When writing each chapter, reflect that specific place's mood and incorporate
-the traveler's notes for that place into the prose. Do not mix moods between places.
-
-PHOTOS ATTACHED (${allImageParts.length} total):
-${imageGuide}
-
-IMPORTANT: This is a REWRITE. Use a distinctly cinematic tone.
-Do not repeat phrases or structure from any previous version.
-Use Google Search to get accurate information about each place.
-Analyze every photo carefully and name specific scenes and landmarks you see.
-
-Same JSON format as before:
-{
-  "coverTitle": "string",
-  "coverSubtitle": "string",
-  "introduction": "string",
-  "chapters": [
-    {
-      "num": 1,
-      "title": "string",
-      "location": "string",
-      "date": "string",
-      "timeLabel": "string",
-      "researchSummary": "string",
-      "prose": "string",
-      "photoIndices": [0, 1],
-      "captions": ["string", "string"]
-    }
-  ],
-  "highlights": [{ "icon": "emoji", "label": "string", "value": "string" }],
-  "timeline": [{ "timeLabel": "string", "place": "string", "desc": "string" }],
-  "reflection": "string"
-}
-
-Return ONLY the JSON object, nothing else.
-    `;
-
+    const prompt = buildPrompt({ trip_title, placesSummary, allImageParts, imageGuide, isRewrite: true, style: new_style });
     const result = await modelWithSearch.generateContent([prompt, ...allImageParts]);
-    const rawText = result.response.text();
-    const cleaned = rawText.replace(/```json|```/g, '').trim();
+    const cleaned = result.response.text().replace(/```json|```/g, '').trim();
     const storybook = JSON.parse(cleaned);
 
-    uploadedFiles.forEach(file => {
-      if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
-    });
-
+    uploadedFiles.forEach(file => { if (fs.existsSync(file.path)) fs.unlinkSync(file.path); });
     res.json({ success: true, storybook });
-
   } catch (error) {
-    uploadedFiles.forEach(file => {
-      if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
-    });
+    uploadedFiles.forEach(file => { if (fs.existsSync(file.path)) fs.unlinkSync(file.path); });
     console.error('Error regenerating storybook:', error.message);
     res.status(500).json({ error: error.message });
   }
